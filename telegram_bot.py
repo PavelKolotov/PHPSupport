@@ -31,8 +31,7 @@ markup_executor = quick_markup({
 })
 
 markup_accept_order = quick_markup({
-    'Принять заявку': {'callback_data': 'accept_order',
-                       'switch_inline_query': 'qwerty'},
+    'Принять заявку': {'callback_data': 'accept_order'},
   })
 
 orders = []
