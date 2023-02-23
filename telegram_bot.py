@@ -31,10 +31,12 @@ markup_executor = quick_markup({
 })
 
 markup_accept_order = quick_markup({
-    'Принять заявку': {'callback_data': 'accept_order'},
+    'Принять заявку': {'callback_data': 'accept_order',
+                       'switch_inline_query': 'qwerty'},
   })
 
 orders = []
+accepted_orders = []
 
 
 def get_time_conv():
@@ -73,6 +75,20 @@ def get_client_order(message):
             * Здравствуйте, хочу провести на сайте акцию, хочу разместить баннер и добавить функционал, чтобы впридачу к акционным товарам выдавался приз
             ''')
     client_bot.register_next_step_handler(message, get_order)
+
+def get_executor_order(message):
+    client_bot.register_next_step_handler(message, get_accept_order)
+
+def get_accept_order(message):
+    global accepted_orders, orders
+    for order in orders:
+        if str(order['order_id']) == message.text:
+            orders[orders.index(order)]['step'] = 1
+            orders[orders.index(order)]['executor_id'] = message.chat.id
+            accepted_orders.append(orders[orders.index(order)])
+            client_bot.send_message(message.chat.id, f'Заявка #{message.text} принята')
+            client_bot.send_message(order['chat_id'], f'Ваша заявка #{message.text} принята к исполнению')
+
 
 def get_order(message):
     global orders
@@ -118,7 +134,16 @@ def callback_inline(call):
         client_bot.send_message(call.message.chat.id, 'Список заказов: ')
         for order in orders:
             if order['step'] == 0:
-                client_bot.send_message(call.message.chat.id, f'Заявка #{order["order_id"]}, {order["time"]}, {order["text"]}', reply_markup=markup_accept_order)
+                client_bot.send_message(call.message.chat.id, f'Заявка #{order["order_id"]}, {order["time"]}, {order["text"]}')
+        client_bot.send_message(call.message.chat.id, 'Нажмите Принять заявку', reply_markup=markup_accept_order)
+    elif call.data == 'accept_order':
+        client_bot.send_message(call.message.chat.id, 'Введите номер заказа, который хотите принять')
+        for accepted_order in accepted_orders:
+            if accepted_order['executor_id'] == call.message.chat.id and accepted_order['step'] == 1:
+                client_bot.send_message(call.message.chat.id, 'У вас уже взят заказ', reply_markup=markup_executor)
+        get_executor_order(call.message)
+    # elif call.data ==
+
 
 
 
