@@ -20,7 +20,8 @@ client_bot = telebot.TeleBot(token=tg_clients_token)
 
 markup_client = quick_markup({
     'Мои заявки': {'callback_data': 'apps_to_client'},
-    'Подать заявку': {'callback_data': 'apply'}
+    'Подать заявку': {'callback_data': 'apply'},
+    'Связь с исполнителем': {'callback_data': 'contact'}
 })
 markup_executor = quick_markup({
     'Список заказов': {'callback_data': 'apps_to_exec'},
@@ -64,6 +65,9 @@ def start(message: telebot.types.Message):
 
 
 @client_bot.message_handler(func=lambda message: True)
+def get_text(message):
+    client_bot.send_message(message.chat.id, 'Для работы с ботом пользуйтесь кнопками')
+
 
 def get_client_order(message):
     client_bot.send_message(message.chat.id, '''
@@ -75,8 +79,23 @@ def get_client_order(message):
             ''')
     client_bot.register_next_step_handler(message, get_order)
 
+
 def get_executor_order(message):
     client_bot.register_next_step_handler(message, get_accept_order)
+
+
+def get_question(message):
+    client_bot.register_next_step_handler(message, get_executor_question)
+
+
+def get_executor_question(message):
+    global accepted_orders
+    for accepted_order in accepted_orders:
+        if accepted_order['executor_id'] == message.chat.id and accepted_order['step'] == 1:
+            client_bot.send_message(accepted_order['chat_id'], message.text, reply_markup=markup_client)
+        elif accepted_order['chat_id'] == message.chat.id and accepted_order['step'] == 1:
+            client_bot.send_message(accepted_order['executor_id'], message.text, reply_markup=markup_executor)
+
 
 def get_accept_order(message):
     global accepted_orders, orders
@@ -85,7 +104,7 @@ def get_accept_order(message):
             orders[orders.index(order)]['step'] = 1
             orders[orders.index(order)]['executor_id'] = message.chat.id
             accepted_orders.append(orders[orders.index(order)])
-            client_bot.send_message(message.chat.id, f'Заявка #{message.text} принята')
+            client_bot.send_message(message.chat.id, f'Заявка #{message.text} принята', reply_markup=markup_executor)
             client_bot.send_message(order['chat_id'], f'Ваша заявка #{message.text} принята к исполнению')
 
 
@@ -118,6 +137,7 @@ def get_order(message):
 # сделать обработчик текстовый сообщений (ввод инфы от пользователя) c ветвлением на основании алгоритма,
 # либо сделать как показано здесь: https://habr.com/ru/post/442800/ - см. раздел ветки сообщений.
 
+
 @client_bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.data == 'apps_to_client':
@@ -141,10 +161,28 @@ def callback_inline(call):
             if accepted_order['executor_id'] == call.message.chat.id and accepted_order['step'] == 1:
                 client_bot.send_message(call.message.chat.id, 'У вас уже взят заказ', reply_markup=markup_executor)
         get_executor_order(call.message)
-    # elif call.data ==
-
-
-
+    elif call.data == 'active_task':
+        for accepted_order in accepted_orders:
+            if accepted_order['executor_id'] == call.message.chat.id and accepted_order['step'] == 1:
+                order_id = accepted_orders[accepted_orders.index(accepted_order)]['order_id']
+                time_id = accepted_orders[accepted_orders.index(accepted_order)]['time']
+                text_id = accepted_orders[accepted_orders.index(accepted_order)]['text']
+                client_bot.send_message(call.message.chat.id, f'Заявка #{order_id}, {time_id}, {text_id}', reply_markup=markup_executor)
+    elif call.data == 'salary':
+        client_bot.send_message(call.message.chat.id, 'Бояре платят пятьсот рублей за заявку', reply_markup=markup_executor)
+    elif call.data == 'ask_question':
+        client_bot.send_message(call.message.chat.id, 'Введите уточняющие вопросы')
+        get_question(call.message)
+    elif call.data == 'contact':
+        client_bot.send_message(call.message.chat.id, 'Введите сообщение для связи с исполнителем')
+        get_question(call.message)
+    elif call.data == 'work_done':
+        for accepted_order in accepted_orders:
+            if accepted_order['executor_id'] == call.message.chat.id and accepted_order['step'] == 1:
+                accepted_orders[accepted_orders.index(accepted_order)]['step'] = 2
+                client_bot.send_message(call.message.chat.id, 'Заявка закрыта')
+                client_bot.send_message(accepted_orders[accepted_orders.index(accepted_order)]['chat_id'],
+                                        f'Заявка # {accepted_orders[accepted_orders.index(accepted_order)]["order_id"]} выполнена')
 
     # здесь ведем обработку нажатий кнопок.
     # имеем ввиду что при ответе на кнопки некоторые сообщения
