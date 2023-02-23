@@ -25,3 +25,4 @@ __pycache__
 .idea
 .env
 test.py
+test2.py
