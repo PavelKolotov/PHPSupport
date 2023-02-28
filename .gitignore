@@ -27,3 +27,4 @@ __pycache__
 test.py
 test2.py
 telegram_bot.py
+database.db-journal
