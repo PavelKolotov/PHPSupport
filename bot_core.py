@@ -27,10 +27,10 @@ calls_map = {
 # all of these buttons are attached to particular messages
 calls_id_map = {
     'take_order_id': calls.take_order_id,
-    'ask_question_id':calls.ask_question_id,
+    'ask_question_id': calls.ask_question_id,
     'edit_question_id': calls.edit_question_id,
     'work_done_id': calls.work_done_id,
-    'see_client_answer_id':calls.see_client_answer_id,
+    'see_client_answer_id': calls.see_client_answer_id,
     'accept_answer_id': calls.accept_answer_id,
     'reject_answer_id': calls.reject_answer_id,
     'answer_id': calls.answer_id,
@@ -58,7 +58,7 @@ buttons_names = {
 
 @bot.message_handler(commands=['start'])
 def command_start(message: telebot.types.Message):
-   calls.start_bot(message)
+    calls.start_bot(message)
 
 
 @bot.message_handler(commands=['menu'])
@@ -108,9 +108,9 @@ def handle_buttons(call):
         return
     if 'id' in btn_command:
         parts = btn_command.split(':')
-        id = parts[-1]
+        key_func = parts[-1]
         func_name = parts[0]
-        calls_id_map[func_name](call.message, id)
+        calls_id_map[func_name](call.message, key_func)
         return
     else:
         calls_map[call.data](call.message)
