@@ -6,7 +6,7 @@ from telebot.util import quick_markup
 import db
 from globals import (
     bot, USER_NOT_FOUND, ACCESS_DENIED, UG_CLIENT, ACCESS_DUE_TIME, ACCESS_ALLOWED,
-    chats, help_messages, markup_client, markup_admin, markup_executor,
+    chats, help_messages, markup_client, markup_admin, markup_executor, markup_group_users,
     markup_cancel_step, UG_EXECUTOR, UG_ADMIN, INPUT_DUE_TIME
 )
 
@@ -16,23 +16,25 @@ from globals import (
 def cache_user(chat_id):
     user = db.get_user_by_chat_id(chat_id)
     access_due = dt.datetime.now() + dt.timedelta(0, ACCESS_DUE_TIME)
-    chats[chat_id]={
-        'callback': None,               # current callback button
-        'last_msg': [],                 # последние отправленные за один раз сообщения,в которых нужно удалить кнопки
-        'callback_source': [],          # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
-        'group': user['user_group'],    # группа, к которой принадлежит пользователь
-        'access_due': access_due,       # дата и время актуальности кэшированного статуса
-        'access': user['access'],       # код доступа
-        'text': None,                   # для разных целей - перспектива
-        'number': None,                 # для разных целей - перспектива
-        'step_due': None,               # срок  ожидания ввода данных (используем в callback функциях)
+    chats[chat_id] = {
+        'name': None,
+        'callback': None,  # current callback button
+        'last_msg': [],  # последние отправленные за один раз сообщения,в которых нужно удалить кнопки
+        'callback_source': [],  # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
+        'group': user['user_group'],  # группа, к которой принадлежит пользователь
+        'access_due': access_due,  # дата и время актуальности кэшированного статуса
+        'access': user['access'],  # код доступа
+        'text': None,  # для разных целей - перспектива
+        'number': None,  # для разных целей - перспектива
+        'step_due': None,  # срок  ожидания ввода данных (используем в callback функциях)
     }
     return chats[chat_id]
 
 
 def start_bot(message: telebot.types.Message):
     user_name = message.from_user.username
-    bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.username}')
+    bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.username}. \n'
+                                      f'Для полной авторизации введите что-нибудь в чат.')
     access_due = dt.datetime.now() + dt.timedelta(0, ACCESS_DUE_TIME)
     access, group = db.check_user_access(tg_name=user_name)
     if access == USER_NOT_FOUND:
@@ -41,23 +43,23 @@ def start_bot(message: telebot.types.Message):
     elif access == ACCESS_DENIED and group == UG_CLIENT:
 
         bot.send_message(message.chat.id, 'Ваша подписка окончилась, новые заявки создать нельзя.'
-                                                 'Однако можно отслеживать ранее поданные заявки')
+                                          'Однако можно отслеживать ранее поданные заявки')
 
     db.update_user_data(
         user_name,
         ('tg_user_id', 'chat_id'),
         (message.from_user.id, message.chat.id)
     )
-    chats[message.chat.id]={
-        'callback': None,               # current callback button
-        'last_msg': [],                 # последние отправленные за один раз сообщения (для подчистки кнопок) -- перспектива
-        'callback_source': [],          # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
-        'group': group,                 # группа, к которой принадлежит пользователь
-        'access_due': access_due,       # дата и время актуальности кэшированного статуса
-        'access': access,               # код доступа
-        'text': None,                   # для разных целей - перспектива
-        'number': None,                 # для разных целей - перспектива
-        'step_due': None,               # срок актуальности ожидания ввода данных (используем в callback функциях)
+    chats[message.chat.id] = {
+        'callback': None,  # current callback button
+        'last_msg': [],  # последние отправленные за один раз сообщения (для подчистки кнопок) -- перспектива
+        'callback_source': [],  # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
+        'group': group,  # группа, к которой принадлежит пользователь
+        'access_due': access_due,  # дата и время актуальности кэшированного статуса
+        'access': access,  # код доступа
+        'text': None,  # для разных целей - перспектива
+        'number': None,  # для разных целей - перспектива
+        'step_due': None,  # срок актуальности ожидания ввода данных (используем в callback функциях)
     }
     show_main_menu(message.chat.id, group)
 
@@ -70,7 +72,7 @@ def check_user_in_cache(msg: telebot.types.Message):
     user = chats.get(msg.chat.id)
     if not user:
         bot.send_message(msg.chat.id, 'Упс. Что то пошло не так.\n'
-                                                 'Начнем с главного меню')
+                                      'Начнем с главного меню')
         start_bot(msg)
         return None
     else:
@@ -89,7 +91,7 @@ def send_help_msg(chat_id, group):
 
 def show_main_menu(chat_id, group):
     user = chats[chat_id]
-    if user['access_due']<dt.datetime.now():
+    if user['access_due'] < dt.datetime.now():
         access, group = db.check_user_access(chat_id=chat_id)
         user['access_due'] = dt.datetime.now() + dt.timedelta(0, ACCESS_DUE_TIME)
         user['access'] = access
@@ -101,14 +103,14 @@ def show_main_menu(chat_id, group):
     :return:
     """
     markup = None
-    if group==UG_CLIENT:
+    if group == UG_CLIENT:
         markup = markup_client
-    elif group==UG_EXECUTOR:
+    elif group == UG_EXECUTOR:
         markup = markup_executor
-    elif group==UG_ADMIN:
+    elif group == UG_ADMIN:
         markup = markup_admin
     msg = bot.send_message(chat_id, 'Варианты действий', reply_markup=markup)
-    chats[chat_id]['callback_source'] = [msg.id,]
+    chats[chat_id]['callback_source'] = [msg.id, ]
     chats[chat_id]['callback'] = None
 
 
@@ -121,7 +123,7 @@ def remove_last_buttons(chat_id):
     user = chats[chat_id]
     msg: telebot.types.Message
     for msg in user['last_msg']:
-        bot.edit_message_reply_markup(chat_id,msg.message_id, reply_markup=None)
+        bot.edit_message_reply_markup(chat_id, msg.message_id, reply_markup=None)
 
 
 def cancel_step(message: telebot.types.Message):
@@ -139,11 +141,11 @@ def apply(message: telebot.types.Message, step=0):
     and putting the given info to DB
     """
     user = chats[message.chat.id]
-    if user['access']!=ACCESS_ALLOWED:
+    if user['access'] != ACCESS_ALLOWED:
         bot.send_message(message.chat.id, 'Ваша подписка окончилась, новые заявки создать нельзя.'
                                           'Однако можно отслеживать ранее поданные заявки')
         return
-    if step==0:
+    if step == 0:
         user['callback'] = 'apply'
         msg = bot.send_message(message.chat.id, '''
                 Сформулируйте содержание задачи
@@ -156,27 +158,27 @@ def apply(message: telebot.types.Message, step=0):
         user['callback_source'].append(msg.id)
         bot.register_next_step_handler(message, apply, 1)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif user['step_due']<dt.datetime.now():
+    elif user['step_due'] < dt.datetime.now():
         bot.send_message(message.chat.id, 'Время ввода данных истекло')
         cancel_step(message)
         return
-    elif step==1:
+    elif step == 1:
         user['text'] = message.text
         msg = bot.send_message(
             message.chat.id,
             'Пожалуйста введите учетные данные для входа на сервер:\n'
             'URL:, логин, пароль', reply_markup=markup_cancel_step
         )
-        user['callback_source'] = [msg.id,]
+        user['callback_source'] = [msg.id, ]
         bot.register_next_step_handler(message, apply, 2)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif step==2:
+    elif step == 2:
         date_reg = dt.date.today()
         credentials = message.text
         order_id = db.add_client_order(message.chat.id, user['text'], credentials, date_reg)
         bot.send_message(message.chat.id, f'Заявка #{order_id} принята.'
                                           f' Вам помогут в течение 24 часов')
-        user['callback']=None
+        user['callback'] = None
         user['callback_source'] = []
 
 
@@ -195,7 +197,7 @@ def apps_to_client(msg: telebot.types.Message):
         buttons = {}
         status = order['status']
         date_text = [f'Дата регистрации:  {order["date_reg"]}']
-        if status==0:
+        if status == 0:
             status_text = '*--ПОИСК ИСПОЛНИТЕЛЯ--*\n'
         elif status == 1:
             status_text = '*--В РАБОТЕ--*\n'
@@ -203,17 +205,17 @@ def apps_to_client(msg: telebot.types.Message):
             buttons['Комментарий исполнителю'] = {
                 'callback_data': f'send_comments_id:{order["order_id"]}'
             }
-        elif status==2:
+        elif status == 2:
             status_text = '*--ЕСТЬ ВОПРОСЫ--*\n'
             buttons['Смотреть вопросы'] = {'callback_data': f'client_see_questions_id:{order["order_id"]}'}
-        elif status==3:
+        elif status == 3:
             status_text = '*--ВЫ ОТВЕТИЛИ--*\n'
             buttons['Редактировать ответ'] = {'callback_data': f'edit_answer_id:{order["order_id"]}'}
-        elif status==4:
+        elif status == 4:
             status_text = '*--ВЫПОЛНЕНА И ЖДЕТ ВАШЕЙ ПРИЕМКИ--*\n'
-            buttons['Принять']={'callback_data': f'accept_work_id:{order["order_id"]}'}
+            buttons['Принять'] = {'callback_data': f'accept_work_id:{order["order_id"]}'}
             buttons['Отклонить'] = {'callback_data': f'reject_work_id:{order["order_id"]}'}
-        elif status==5:
+        elif status == 5:
             status_text = '*--НА ДОРАБОТКЕ--*\n'
         elif status == 6:
             status_text = '*--ПРИНЯТА ВАМИ--*\n'
@@ -227,8 +229,8 @@ def apps_to_client(msg: telebot.types.Message):
                        f'Ваши комментарии:\n{comments}\n---\n{date_text}'
         if buttons:
             msg = bot.send_message(msg.chat.id, msg_text,
-                             parse_mode='Markdown',
-                             reply_markup=quick_markup(buttons))
+                                   parse_mode='Markdown',
+                                   reply_markup=quick_markup(buttons))
             client_calls.append(msg.id)
         else:
             bot.send_message(msg.chat.id, msg_text, parse_mode='Markdown')
@@ -253,10 +255,10 @@ def answer_id(msg: telebot.types.Message, order_id, step=0, end_text=None):
     if step == 0:
         user['callback'] = 'answer_id'
         msg = bot.send_message(msg.chat.id, 'Отправьте в чат ответы на вопросы исполнителя',
-                         reply_markup=markup_cancel_step)
+                               reply_markup=markup_cancel_step)
         bot.register_next_step_handler(msg, answer_id, order_id, 1, end_text)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-        user['callback_source'] = [msg.id,]
+        user['callback_source'] = [msg.id, ]
     elif user['step_due'] < dt.datetime.now():
         bot.send_message(msg.chat.id, 'Время ввода данных истекло')
         cancel_step(msg)
@@ -273,8 +275,8 @@ def answer_id(msg: telebot.types.Message, order_id, step=0, end_text=None):
             msg_text = f'По заявке *#{order_id}* {end_text}\n' \
                        f'{answer}'
         else:
-            msg_text =  f'По заявке *#{order_id}* заказчик ответил на Ваши вопросы\n' \
-                        f'{answer}'
+            msg_text = f'По заявке *#{order_id}* заказчик ответил на Ваши вопросы\n' \
+                       f'{answer}'
         msg_to_exec = bot.send_message(exec_chat_id, msg_text, parse_mode='Markdown', reply_markup=buttons)
         exec = chats.get(exec_chat_id)
         if not exec:
@@ -288,18 +290,18 @@ def answer_id(msg: telebot.types.Message, order_id, step=0, end_text=None):
 
 def send_comments_id(msg: telebot.types.Message, order_id, step=0):
     user = chats[msg.chat.id]
-    if step==0:
+    if step == 0:
         user['callback'] = 'send_comments_id'
         msg = bot.send_message(msg.chat.id, 'Напишите Ваш комментарий',
-                         reply_markup=markup_cancel_step)
-        user['callback_source'] = [msg.id,]
+                               reply_markup=markup_cancel_step)
+        user['callback_source'] = [msg.id, ]
         bot.register_next_step_handler(msg, send_comments_id, order_id, 1)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif user['step_due']<dt.datetime.now():
+    elif user['step_due'] < dt.datetime.now():
         bot.send_message(msg.chat.id, 'Время ввода данных истекло')
         cancel_step(msg)
         return
-    elif step==1:
+    elif step == 1:
         comments = msg.text
         db.update_order_data(order_id, ['comments'], [comments])
         exec_chat_id = db.get_order_exec_chat(order_id)
@@ -314,7 +316,7 @@ def send_comments_id(msg: telebot.types.Message, order_id, step=0):
         msg_to_exec = bot.send_message(exec_chat_id, msg_text, parse_mode='Markdown', reply_markup=buttons)
         bot.send_message(msg.chat.id, f'Комментарий отправлен исполнителю')
         exec['callback_source'].append(msg_to_exec.id)
-        user['callback']=None
+        user['callback'] = None
         user['callback_source'] = []
 
 
@@ -333,8 +335,8 @@ def client_see_questions_id(msg: telebot.types.Message, order_id):
         'Ответить на вопросы': {'callback_data': f'answer_id:{order_id}'}
     })
     msg = bot.send_message(msg.chat.id, f'Вопросы исполнителя по заявке *#{order_id}*\n\n'
-                                  f'{order["questions"]}', reply_markup=buttons,
-                     parse_mode='Markdown')
+                                        f'{order["questions"]}', reply_markup=buttons,
+                           parse_mode='Markdown')
     chats[msg.chat.id]['callback_source'].append(msg.id)
 
 
@@ -347,18 +349,18 @@ def accept_work_id(msg: telebot.types.Message, order_id):
 
 def reject_work_id(msg: telebot.types.Message, order_id, step=0):
     user = chats[msg.chat.id]
-    if step==0:
+    if step == 0:
         user['callback'] = 'reject_work_id'
         msg = bot.send_message(msg.chat.id, 'Напишите обоснование, почему не принимаете работу',
-                         reply_markup=markup_cancel_step)
-        user['callback_source'] = [msg.id,]
+                               reply_markup=markup_cancel_step)
+        user['callback_source'] = [msg.id, ]
         bot.register_next_step_handler(msg, reject_work_id, order_id, 1)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif user['step_due']<dt.datetime.now():
+    elif user['step_due'] < dt.datetime.now():
         bot.send_message(msg.chat.id, 'Время ввода данных истекло')
         cancel_step(msg)
         return
-    elif step==1:
+    elif step == 1:
         comments = msg.text
         db.update_order_data(order_id, ['comments', 'status'], [comments, 5])
         exec_chat_id = db.get_order_exec_chat(order_id)
@@ -372,7 +374,7 @@ def reject_work_id(msg: telebot.types.Message, order_id, step=0):
         bot.send_message(msg.chat.id, f'Оповещение о неприемке работы по  заявке'
                                       f' *#{order_id}* направлено исполнителю', parse_mode='Markdown')
         exec['callback_source'].append(msg_to_exec.id)
-        user['callback']=None
+        user['callback'] = None
         user['callback_source'] = []
 
 
@@ -392,7 +394,7 @@ def apps_to_exec(msg: telebot.types.Message):
     if orders:
         for order in orders:
             id = order['order_id']
-            markup = quick_markup({'Взять в работу':{'callback_data': f'take_order_id:{id}'}})
+            markup = quick_markup({'Взять в работу': {'callback_data': f'take_order_id:{id}'}})
             text_out = f'*Заявка #{id}*\n\n*Описание:*\n {order["description"]}\n'
             msg = bot.send_message(msg.chat.id, text_out, reply_markup=markup, parse_mode='Markdown')
             actual_messages.append(msg.id)
@@ -413,16 +415,16 @@ def apps_in_work(msg: telebot.types.Message):
             status_text = '*--В РАБОТЕ--*\n'
             date_text.append(f'Взято в работу:  {order["date_appoint"]}')
             buttons['Задать вопросы'] = {'callback_data': f'ask_question_id:{order["order_id"]}'}
-        elif status==2:
+        elif status == 2:
             status_text = '*--ЗАДАНЫ ВОПРОСЫ--*\n'
             buttons['Редактировать вопросы'] = {'callback_data': f'edit_question_id:{order["order_id"]}'}
-        elif status==3:
+        elif status == 3:
             status_text = '*--ЗАКАЗЧИК ОТВЕТИЛ--*\n'
             buttons['Смотреть ответ'] = {'callback_data': f'see_client_answer_id:{order["order_id"]}'}
-        elif status==4:
+        elif status == 4:
             status_text = '*--ОЖИДАНИЕ ПРИЕМКИ ЗАКАЗЧИКОМ--*\n'
             buttons = None
-        elif status==5:
+        elif status == 5:
             status_text = '*--НА ДОАРБОТКУ--*\n'
             buttons['Задать вопросы'] = {'callback_data': f'ask_question_id:{order["order_id"]}'}
         date_text = '\n'.join(date_text)
@@ -441,8 +443,8 @@ def apps_in_work(msg: telebot.types.Message):
                        f'{date_text}'
         if buttons:
             msg = bot.send_message(msg.chat.id, msg_text,
-                             parse_mode='Markdown',
-                             reply_markup=quick_markup(buttons))
+                                   parse_mode='Markdown',
+                                   reply_markup=quick_markup(buttons))
             actual_messages.append(msg.id)
         else:
             bot.send_message(msg.chat.id, msg_text, parse_mode='Markdown')
@@ -469,18 +471,18 @@ def salary(msg: telebot.types.Message):
 
 def ask_question_id(msg: telebot.types.Message, order_id, step=0, end_text=None):
     executor = chats[msg.chat.id]
-    if step==0:
+    if step == 0:
         executor['callback'] = 'ask_question_id'
         msg = bot.send_message(msg.chat.id, 'Введите вопросы, каждый вопрос с новой строки',
-                         reply_markup=markup_cancel_step)
-        executor['callback_source'] = [msg.id,]
+                               reply_markup=markup_cancel_step)
+        executor['callback_source'] = [msg.id, ]
         bot.register_next_step_handler(msg, ask_question_id, order_id, 1, end_text)
         executor['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif executor['step_due']<dt.datetime.now():
+    elif executor['step_due'] < dt.datetime.now():
         bot.send_message(msg.chat.id, 'Время ввода данных истекло')
         cancel_step(msg)
         return
-    elif step==1:
+    elif step == 1:
         questions = msg.text
         db.update_order_data(order_id, ['questions', 'status'], [questions, 2])
         client_chat_id = db.get_order_client_chat(order_id)
@@ -498,8 +500,8 @@ def ask_question_id(msg: telebot.types.Message, order_id, step=0, end_text=None)
         client['callback_source'].append(msg_to_client.id)
         bot.send_message(msg.chat.id, f'Вопросы по заявке *#{order_id}* направлены клиенту',
                          parse_mode='Markdown')
-        executor['callback']=None
-        executor['callback_source']=[]
+        executor['callback'] = None
+        executor['callback_source'] = []
 
 
 def edit_question_id(msg: telebot.types.Message, order_id, step=0):
@@ -517,41 +519,41 @@ def see_client_answer_id(msg: telebot.types.Message, order_id):
         'Остались вопросы': {'callback_data': f'reject_answer_id:{order_id}'}
     })
     msg = bot.send_message(msg.chat.id, f'Ответы Заказчика по  заявке #*{order_id}*\n\n'
-                                  f'{order["answer"]}', reply_markup=buttons,
-                     parse_mode='Markdown')
-    user['callback_source'] = [msg.id,]
+                                        f'{order["answer"]}', reply_markup=buttons,
+                           parse_mode='Markdown')
+    user['callback_source'] = [msg.id, ]
 
 
 def exec_see_questions_id(msg: telebot.types.Message, order_id):
     user = chats[msg.chat.id]
     order = db.get_order_by_id(order_id)
     buttons = quick_markup({
-            'Изменить': {'callback_data': f'edit_question_id:{order_id}'},
-        })
+        'Изменить': {'callback_data': f'edit_question_id:{order_id}'},
+    })
     msg = bot.send_message(msg.chat.id, f'*Ваши вопросы по заявке #{order_id}*\n\n'
-                                  f'{order["questions"]}', reply_markup=buttons,
-                     parse_mode='Markdown')
-    user['callback_source'] = [msg.id,]
+                                        f'{order["questions"]}', reply_markup=buttons,
+                           parse_mode='Markdown')
+    user['callback_source'] = [msg.id, ]
 
 
 def take_order_id(msg: telebot.types.Message, order_id, step=0):
     user = chats[msg.chat.id]
-    if step==0:
+    if step == 0:
         user['callback'] = 'take_order_id'
         msg = bot.send_message(msg.chat.id, 'Введите оценку сроков выполнения в свободной форме',
-                         reply_markup=markup_cancel_step)
+                               reply_markup=markup_cancel_step)
         bot.register_next_step_handler(msg, take_order_id, order_id, 1)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-        user['callback_source']=[msg.id,]
-    elif user['step_due']<dt.datetime.now():
+        user['callback_source'] = [msg.id, ]
+    elif user['step_due'] < dt.datetime.now():
         bot.send_message(msg.chat.id, 'Время ввода данных истекло')
         cancel_step(msg)
         return
-    elif step==1:
+    elif step == 1:
         if db.get_order_status(order_id):
             print(db.get_order_status(order_id))
             bot.send_message(msg.chat.id, f'К сожалению эта заявка уже взята'
-                                              f' в работу другим исполнителем')
+                                          f' в работу другим исполнителем')
         else:
             estimation = msg.text
             date_appoint = dt.date.today()
@@ -567,8 +569,8 @@ def take_order_id(msg: telebot.types.Message, order_id, step=0):
                              parse_mode='Markdown')
             bot.send_message(msg.chat.id, f'*Данные для входа на сервер:*\n'
                                           f'{order["credentials"]}', parse_mode='Markdown')
-        user['callback']=None
-        user['callback_source']=[]
+        user['callback'] = None
+        user['callback_source'] = []
 
 
 def work_done_id(msg: telebot.types.Message, order_id):
@@ -580,7 +582,7 @@ def work_done_id(msg: telebot.types.Message, order_id):
         'Отклонить': {'callback_data': f'reject_work_id:{order_id}'}
     })
     msg_to_client = bot.send_message(client_chat, f'Работа по *заявке #{order_id}* выполнена',
-                     reply_markup=buttons, parse_mode='Markdown')
+                                     reply_markup=buttons, parse_mode='Markdown')
     if not client:
         client = cache_user(client_chat)
     client['callback_source'].append(msg_to_client.id)
@@ -598,3 +600,126 @@ def accept_answer_id(msg: telebot.types.Message, order_id):
 
 def reject_answer_id(msg: telebot.types.Message, order_id):
     ask_question_id(msg, order_id, end_text='у исполнителя остались вопросы')
+
+
+# CALLBACK FUNCTIONS FOR ADMIN
+
+def add_user(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+
+    if step == 0:
+        user['callback'] = 'add_user'
+        msg = bot.send_message(message.chat.id, '''
+                Введите имя пользователя для регистации
+                ''', parse_mode='Markdown', reply_markup=markup_cancel_step)
+        user['callback_source'].append(msg.id)
+        bot.register_next_step_handler(message, add_user, 1)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif user['step_due'] < dt.datetime.now():
+        bot.send_message(message.chat.id, 'Время ввода данных истекло')
+        cancel_step(message)
+        return
+    elif step == 1:
+        user['name'] = message.text
+        msg = bot.send_message(
+            message.chat.id,
+            'Введите группу пользователя:\n'
+            '1 - заказчик, 2 - исполнитель', reply_markup=markup_cancel_step
+        )
+        user['callback_source'] = [msg.id, ]
+        bot.register_next_step_handler(message, add_user, 2)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif step == 2:
+        date_reg = dt.date.today()
+        user_group = message.text
+        user_id = db.add_new_user(user['name'], user_group, date_reg)
+        bot.send_message(message.chat.id, f'Пользователь #{user_id} - {user["name"]} зарегистрирован.',
+                         reply_markup=markup_admin)
+        user['callback'] = None
+        user['callback_source'] = []
+
+
+def access_control(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+
+    if step == 0:
+        user['callback'] = 'access_control'
+        msg = bot.send_message(message.chat.id,
+                               'Введите группу пользователя:\n'
+                               '1 - заказчик, 2 - исполнитель', reply_markup=markup_cancel_step)
+        user['callback_source'].append(msg.id)
+        bot.register_next_step_handler(message, get_clients)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif user['step_due'] < dt.datetime.now():
+        bot.send_message(message.chat.id, 'Время ввода данных истекло')
+        cancel_step(message)
+        return
+    user['callback'] = None
+    user['callback_source'] = []
+
+
+def get_clients(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+
+    if step == 0:
+        user['callback'] = 'get_clients'
+        if message.text == '1' or message.text == '2':
+            users = db.get_list_users(message.text)
+            for us in users:
+                tg_name = us['tg_name']
+                sub_time = us['subscription_time']
+                access = us['access']
+                markup = quick_markup({'Изменить доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+                if message.text == '1':
+                    text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
+                               f'Доступ {access}'
+                    bot.send_message(message.chat.id, text_out, reply_markup=markup)
+
+                elif message.text == '2':
+                    text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
+                               f'Доступ {access}'
+                    bot.send_message(message.chat.id, text_out, reply_markup=markup)
+
+        else:
+            text_out = f'Введенная группа некорректна'
+            bot.send_message(message.chat.id, text_out)
+        user['callback'] = None
+        user['callback_source'] = []
+
+
+def change_access_id(message: telebot.types.Message, tg_name):
+    user = chats[message.chat.id]
+    user['callback'] = 'change_access_id'
+    users = db.get_all_users()
+
+    for us in users:
+        if us['tg_name'] == tg_name:
+            access = us['access']
+            db.change_user_access(tg_name, access)
+            if access == 1:
+                bot.send_message(message.chat.id, 'Доступ закрыт', reply_markup=markup_admin)
+            elif access == 0:
+                bot.send_message(message.chat.id, 'Доступ открыт', reply_markup=markup_admin)
+        user['callback'] = None
+        user['callback_source'] = []
+
+
+def apps_stat(message: telebot.types.Message):
+    user = chats[message.chat.id]
+    user['callback'] = 'apps_stat'
+
+    users = db.get_list_users(1)
+    orders = db.get_all_orders()
+    total_orders = orders[-1]['order_id'] - orders[0]['order_id']
+    bot.send_message(message.chat.id, f'Общее количество заявок {total_orders}')
+    for user in users:
+        chat_id = user['chat_id']
+        tg_name = user['tg_name']
+        count = 0
+        for order in orders:
+            if order['client_chat_id'] == chat_id:
+                count += 1
+        bot.send_message(message.chat.id, f'Заказчик {tg_name} \n'
+                                          f'Chat_id {chat_id} \n'
+                                          f'Создано заявок {count} \n')
+
