@@ -234,6 +234,7 @@ def get_list_users(user_group):
     cur.close()
     return rows
 
+
 def get_all_users():
     cur: sqlite3.Cursor = con.execute(
         f'select * from users'
@@ -242,6 +243,7 @@ def get_all_users():
     cur.close()
     return rows
 
+
 def get_all_orders():
     cur: sqlite3.Cursor = con.execute(
         f'select * from orders'
@@ -249,6 +251,7 @@ def get_all_orders():
     rows = cur.fetchall()
     cur.close()
     return rows
+
 
 def change_user_access(tg_name, access):
     if access == 1:
@@ -259,19 +262,16 @@ def change_user_access(tg_name, access):
     cur.close()
     return cur.lastrowid
 
+
 def change_user_id(tg_name, chat_id):
     cur = con.execute(f'UPDATE users SET chat_id = {chat_id} WHERE tg_name LIKE "{tg_name}"')
     con.commit()
     cur.close()
     return cur.lastrowid
+
+
 def add_new_user(tg_name, user_group, subscription_time, access=1):
-    """
-    register a new user
-    :param tg_name: of the client
-    :param description: of the application
-    :param credentials: of the sever admin site
-    :return: id of the new order
-    """
+
     data = (tg_name, user_group, subscription_time, access)
     cur = con.execute(
         'insert into users '
@@ -282,5 +282,5 @@ def add_new_user(tg_name, user_group, subscription_time, access=1):
     return cur.lastrowid
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     pass
