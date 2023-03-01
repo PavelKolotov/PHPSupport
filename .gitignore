@@ -26,5 +26,6 @@ __pycache__
 .env
 test.py
 test2.py
+test3.py
 telegram_bot.py
 database.db-journal
