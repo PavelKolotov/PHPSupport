@@ -6,7 +6,7 @@ from telebot.util import quick_markup
 import db
 from globals import (
     bot, USER_NOT_FOUND, ACCESS_DENIED, UG_CLIENT, ACCESS_DUE_TIME, ACCESS_ALLOWED,
-    chats, help_messages, markup_client, markup_admin, markup_executor, markup_group_users,
+    chats, help_messages, markup_client, markup_admin, markup_executor,
     markup_cancel_step, UG_EXECUTOR, UG_ADMIN, INPUT_DUE_TIME
 )
 
@@ -18,15 +18,15 @@ def cache_user(chat_id):
     access_due = dt.datetime.now() + dt.timedelta(0, ACCESS_DUE_TIME)
     chats[chat_id] = {
         'name': None,
-        'callback': None,  # current callback button
-        'last_msg': [],  # последние отправленные за один раз сообщения,в которых нужно удалить кнопки
-        'callback_source': [],  # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
-        'group': user['user_group'],  # группа, к которой принадлежит пользователь
-        'access_due': access_due,  # дата и время актуальности кэшированного статуса
-        'access': user['access'],  # код доступа
-        'text': None,  # для разных целей - перспектива
-        'number': None,  # для разных целей - перспектива
-        'step_due': None,  # срок  ожидания ввода данных (используем в callback функциях)
+        'callback': None,               # current callback button
+        'last_msg': [],                 # последние отправленные за один раз сообщения,в которых нужно удалить кнопки
+        'callback_source': [],          # если задан, колбэк кнопки будут обрабатываться только с этих сообщений
+        'group': user['user_group'],    # группа, к которой принадлежит пользователь
+        'access_due': access_due,       # дата и время актуальности кэшированного статуса
+        'access': user['access'],       # код доступа
+        'text': None,                   # для разных целей - перспектива
+        'number': None,                 # для разных целей - перспектива
+        'step_due': None,               # срок  ожидания ввода данных (используем в callback функциях)
     }
     return chats[chat_id]
 
@@ -682,7 +682,6 @@ def get_clients(message: telebot.types.Message):
         bot.send_message(message.chat.id, text_out)
 
 
-
 def change_access_id(message: telebot.types.Message, tg_name):
 
     users = db.get_all_users()
@@ -697,9 +696,7 @@ def change_access_id(message: telebot.types.Message, tg_name):
                 bot.send_message(message.chat.id, 'Доступ открыт', reply_markup=markup_admin)
 
 
-
 def apps_stat(message: telebot.types.Message):
-
 
     users = db.get_list_users(1)
     orders = db.get_all_orders()
@@ -719,7 +716,6 @@ def apps_stat(message: telebot.types.Message):
 
 def salary_stat(message: telebot.types.Message):
 
-
     users = db.get_list_users(2)
     orders = db.get_all_orders()
 
@@ -738,8 +734,3 @@ def salary_stat(message: telebot.types.Message):
                                           f'Chat_id {chat_id} \n'
                                           f'Выполнено заявок {count} \n'
                                           f'К оплате {salary}  \n')
-
-
-
-
-
