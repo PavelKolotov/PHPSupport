@@ -19,6 +19,7 @@ calls_map = {
     'access_control': calls.access_control,
     'get_clients': calls.get_clients,
     'apps_stat': calls.apps_stat,
+    'salary_stat': calls.salary_stat,
 }
 
 # callback functions mapping to callback buttons
