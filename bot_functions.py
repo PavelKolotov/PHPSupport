@@ -658,38 +658,33 @@ def access_control(message: telebot.types.Message, step=0):
     user['callback_source'] = []
 
 
-def get_clients(message: telebot.types.Message, step=0):
-    user = chats[message.chat.id]
+def get_clients(message: telebot.types.Message):
 
-    if step == 0:
-        user['callback'] = 'get_clients'
-        if message.text == '1' or message.text == '2':
-            users = db.get_list_users(message.text)
-            for us in users:
-                tg_name = us['tg_name']
-                sub_time = us['subscription_time']
-                access = us['access']
-                markup = quick_markup({'Изменить доступ': {'callback_data': f'change_access_id:{tg_name}'}})
-                if message.text == '1':
-                    text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
-                               f'Доступ {access}'
-                    bot.send_message(message.chat.id, text_out, reply_markup=markup)
+    if message.text == '1' or message.text == '2':
+        users = db.get_list_users(message.text)
+        for us in users:
+            tg_name = us['tg_name']
+            sub_time = us['subscription_time']
+            access = us['access']
+            markup = quick_markup({'Изменить доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+            if message.text == '1':
+                text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
+                           f'Доступ {access}'
+                bot.send_message(message.chat.id, text_out, reply_markup=markup)
 
-                elif message.text == '2':
-                    text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
-                               f'Доступ {access}'
-                    bot.send_message(message.chat.id, text_out, reply_markup=markup)
+            elif message.text == '2':
+                text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
+                           f'Доступ {access}'
+                bot.send_message(message.chat.id, text_out, reply_markup=markup)
 
-        else:
-            text_out = f'Введенная группа некорректна'
-            bot.send_message(message.chat.id, text_out)
-        user['callback'] = None
-        user['callback_source'] = []
+    else:
+        text_out = f'Введенная группа некорректна'
+        bot.send_message(message.chat.id, text_out)
+
 
 
 def change_access_id(message: telebot.types.Message, tg_name):
-    user = chats[message.chat.id]
-    user['callback'] = 'change_access_id'
+
     users = db.get_all_users()
 
     for us in users:
@@ -700,13 +695,11 @@ def change_access_id(message: telebot.types.Message, tg_name):
                 bot.send_message(message.chat.id, 'Доступ закрыт', reply_markup=markup_admin)
             elif access == 0:
                 bot.send_message(message.chat.id, 'Доступ открыт', reply_markup=markup_admin)
-        user['callback'] = None
-        user['callback_source'] = []
+
 
 
 def apps_stat(message: telebot.types.Message):
-    user = chats[message.chat.id]
-    user['callback'] = 'apps_stat'
+
 
     users = db.get_list_users(1)
     orders = db.get_all_orders()
@@ -722,4 +715,31 @@ def apps_stat(message: telebot.types.Message):
         bot.send_message(message.chat.id, f'Заказчик {tg_name} \n'
                                           f'Chat_id {chat_id} \n'
                                           f'Создано заявок {count} \n')
+
+
+def salary_stat(message: telebot.types.Message):
+
+
+    users = db.get_list_users(2)
+    orders = db.get_all_orders()
+
+    for user in users:
+        chat_id = user['chat_id']
+        tg_name = user['tg_name']
+        count = 0
+        wage_rate = 1000
+
+        for order in orders:
+            if order['ex_chat_id'] == chat_id and order['status'] == 6:
+                count += 1
+
+        salary = count * wage_rate
+        bot.send_message(message.chat.id, f'Исполитель {tg_name} \n'
+                                          f'Chat_id {chat_id} \n'
+                                          f'Выполнено заявок {count} \n'
+                                          f'К оплате {salary}  \n')
+
+
+
+
 
