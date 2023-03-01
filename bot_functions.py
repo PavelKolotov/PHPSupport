@@ -33,8 +33,7 @@ def cache_user(chat_id):
 
 def start_bot(message: telebot.types.Message):
     user_name = message.from_user.username
-    bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.username}. \n'
-                                      f'Для полной авторизации введите что-нибудь в чат.')
+    bot.send_message(message.chat.id, f'Здравствуйте, {message.from_user.username}.')
     access_due = dt.datetime.now() + dt.timedelta(0, ACCESS_DUE_TIME)
     access, group = db.check_user_access(tg_name=user_name)
     if access == USER_NOT_FOUND:
