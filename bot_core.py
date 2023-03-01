@@ -2,6 +2,7 @@ import datetime as dt
 
 
 import bot_functions as calls
+import db
 from globals import *
 
 # general callback functions mapping to callback buttons
@@ -14,6 +15,10 @@ calls_map = {
     'apps_to_exec_done': calls.apps_to_exec_done,
     'salary': calls.salary,
     'apps_in_work': calls.apps_in_work,
+    'add_user': calls.add_user,
+    'access_control': calls.access_control,
+    'get_clients': calls.get_clients,
+    'apps_stat': calls.apps_stat,
 }
 
 # callback functions mapping to callback buttons
@@ -33,7 +38,8 @@ calls_id_map = {
     'exec_see_questions_id': calls.exec_see_questions_id,
     'accept_work_id': calls.accept_work_id,
     'reject_work_id': calls.reject_work_id,
-    'send_comments_id': calls.send_comments_id
+    'send_comments_id': calls.send_comments_id,
+    'change_access_id': calls.change_access_id
 }
 
 # callback buttons display names to mention them in handling functions
@@ -67,6 +73,10 @@ def command_menu(message: telebot.types.Message):
 def get_text(message):
     if calls.check_user_in_cache(message):
         bot.send_message(message.chat.id, 'Для работы с ботом пользуйтесь кнопками')
+        users = db.get_all_users()
+        for user in users:
+            if message.from_user.username == user['tg_name'] and not user['chat_id']:
+                db.change_user_id(message.from_user.username, message.chat.id)
 
 
 @bot.callback_query_handler(func=lambda call: call.data)
@@ -75,17 +85,17 @@ def handle_buttons(call):
     if not user:
         return
     source = user['callback_source']
-    if  source and not call.message.id in user['callback_source']:
+    if source and not call.message.id in user['callback_source']:
         bot.send_message(call.message.chat.id, 'Кнопка не актуальна\n'
                                                '/menu - показать основное меню')
         return
-    elif (dt.datetime.now()-dt.timedelta(0,180))>dt.datetime.fromtimestamp(call.message.date):
+    elif (dt.datetime.now()-dt.timedelta(0, 180)) > dt.datetime.fromtimestamp(call.message.date):
         bot.send_message(call.message.chat.id, 'Срок действия кнопки истек')
         calls.show_main_menu(call.message.chat.id, chats[call.message.chat.id]['group'])
         return
     btn_command: str = call.data
     current_command = user['callback']
-    if btn_command=='cancel_step':
+    if btn_command == 'cancel_step':
         if current_command:
             calls.cancel_step(call.message)
         return
@@ -97,7 +107,7 @@ def handle_buttons(call):
         return
     if 'id' in btn_command:
         parts = btn_command.split(':')
-        id = int(parts[-1])
+        id = parts[-1]
         func_name = parts[0]
         calls_id_map[func_name](call.message, id)
         return
