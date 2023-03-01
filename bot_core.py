@@ -74,10 +74,7 @@ def command_menu(message: telebot.types.Message):
 def get_text(message):
     if calls.check_user_in_cache(message):
         bot.send_message(message.chat.id, 'Для работы с ботом пользуйтесь кнопками')
-        users = db.get_all_users()
-        for user in users:
-            if message.from_user.username == user['tg_name'] and not user['chat_id']:
-                db.change_user_id(message.from_user.username, message.chat.id)
+
 
 
 @bot.callback_query_handler(func=lambda call: call.data)
