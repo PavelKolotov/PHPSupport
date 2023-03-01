@@ -225,5 +225,62 @@ def get_order_exec_chat(order_id):
     return row['ex_chat_id']
 
 
+def get_list_users(user_group):
+    """retrieve all executors/clients"""
+    cur: sqlite3.Cursor = con.execute(
+        f'select * from users where user_group={user_group}'
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+def get_all_users():
+    cur: sqlite3.Cursor = con.execute(
+        f'select * from users'
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+def get_all_orders():
+    cur: sqlite3.Cursor = con.execute(
+        f'select * from orders'
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
+def change_user_access(tg_name, access):
+    if access == 1:
+        cur = con.execute(f'UPDATE users SET access = 0 WHERE tg_name LIKE "{tg_name}"')
+    else:
+        cur = con.execute(f'UPDATE users SET access = 1 WHERE tg_name LIKE "{tg_name}"')
+    con.commit()
+    cur.close()
+    return cur.lastrowid
+
+def change_user_id(tg_name, chat_id):
+    cur = con.execute(f'UPDATE users SET chat_id = {chat_id} WHERE tg_name LIKE "{tg_name}"')
+    con.commit()
+    cur.close()
+    return cur.lastrowid
+def add_new_user(tg_name, user_group, subscription_time, access=1):
+    """
+    register a new user
+    :param tg_name: of the client
+    :param description: of the application
+    :param credentials: of the sever admin site
+    :return: id of the new order
+    """
+    data = (tg_name, user_group, subscription_time, access)
+    cur = con.execute(
+        'insert into users '
+        '(tg_name, user_group, subscription_time, access) '
+        'values( ?, ?, ?, ?)', data)
+    con.commit()
+    cur.close()
+    return cur.lastrowid
+
+
 if __name__=='__main__':
     pass
