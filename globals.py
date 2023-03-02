@@ -52,17 +52,24 @@ markup_admin = quick_markup({
     'Статистика оплат': {'callback_data': 'salary_stat'}
 })
 
-# cancel button to exit current input step for all user groups
-# if clicked, main menu for the appropriate user group is shown
-# and current input step is canceled
 markup_cancel_step = quick_markup({
     'Отмена': {'callback_data': 'cancel_step'},
   })
+
+markup_group_uuser = quick_markup({
+    'Заказчик': {'callback_data': 'add_client'},
+    'Исполнитель': {'callback_data': 'add_executor'},
+})
 
 markup_group_users = quick_markup({
     'Заказчики': {'callback_data': 'get_clients'},
     'Исполнители': {'callback_data': 'get_executors'},
   })
+
+# cancel button to exit current input step for all user groups
+# if clicked, main menu for the appropriate user group is shown
+# and current input step is canceled
+
 # cache for temporary saving context-specific info
 # for each user, communicating with the bot.
 # Each chat in the dict (and it means particular user in fact) is accessed by chat_id

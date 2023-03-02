@@ -605,13 +605,13 @@ def reject_answer_id(msg: telebot.types.Message, order_id):
 
 def add_user(message: telebot.types.Message, step=0):
     user = chats[message.chat.id]
+    user['callback'] = 'add_user'
 
     if step == 0:
-        user['callback'] = 'add_user'
         msg = bot.send_message(message.chat.id, '''
-                Введите имя пользователя для регистации
+                Введите имя пользователя для регистации без учета @
                 ''', parse_mode='Markdown', reply_markup=markup_cancel_step)
-        user['callback_source'].append(msg.id)
+        user['callback_source'] = [msg.id]
         bot.register_next_step_handler(message, add_user, 1)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
     elif user['step_due'] < dt.datetime.now():
@@ -625,66 +625,79 @@ def add_user(message: telebot.types.Message, step=0):
             'Введите группу пользователя:\n'
             '1 - заказчик, 2 - исполнитель', reply_markup=markup_cancel_step
         )
-        user['callback_source'] = [msg.id, ]
+        user['callback_source'] = [msg.id]
         bot.register_next_step_handler(message, add_user, 2)
-        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif step == 2:
-        date_reg = dt.date.today()
-        user_group = message.text
-        user_id = db.add_new_user(user['name'], user_group, date_reg)
-        bot.send_message(message.chat.id, f'Пользователь #{user_id} - {user["name"]} зарегистрирован.',
-                         reply_markup=markup_admin)
-        user['callback'] = None
-        user['callback_source'] = []
-
-
-def access_control(message: telebot.types.Message, step=0):
-    user = chats[message.chat.id]
-
-    if step == 0:
-        user['callback'] = 'access_control'
-        msg = bot.send_message(message.chat.id,
-                               'Введите группу пользователя:\n'
-                               '1 - заказчик, 2 - исполнитель', reply_markup=markup_cancel_step)
-        user['callback_source'].append(msg.id)
-        bot.register_next_step_handler(message, get_clients)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
     elif user['step_due'] < dt.datetime.now():
         bot.send_message(message.chat.id, 'Время ввода данных истекло')
         cancel_step(message)
         return
-    user['callback'] = None
-    user['callback_source'] = []
+    elif step == 2:
+        if message.text == '1' or message.text == '2':
+            date_reg = dt.date.today()
+            user_group = message.text
+            user_id = db.add_new_user(user['name'], user_group, date_reg)
+            bot.send_message(message.chat.id, f'Пользователь #{user_id} - {user["name"]} зарегистрирован.',
+                             reply_markup=markup_admin)
+        else:
+            bot.send_message(message.chat.id, 'Введенная группа некорректна', reply_markup=markup_admin)
+
+        user['callback'] = None
 
 
-def get_clients(message: telebot.types.Message):
 
-    if message.text == '1' or message.text == '2':
-        users = db.get_list_users(message.text)
-        for us in users:
-            tg_name = us['tg_name']
-            sub_time = us['subscription_time']
-            access = us['access']
-            markup = quick_markup({'Изменить доступ': {'callback_data': f'change_access_id:{tg_name}'}})
-            if message.text == '1':
-                text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
-                           f'Доступ {access}'
-                bot.send_message(message.chat.id, text_out, reply_markup=markup)
+def access_control(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+    user['callback'] = 'access_control'
 
-            elif message.text == '2':
-                text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
-                           f'Доступ {access}'
-                bot.send_message(message.chat.id, text_out, reply_markup=markup)
+    if step == 0:
+        msg = bot.send_message(message.chat.id,
+                               'Введите группу пользователя:\n'
+                               '1 - заказчик, 2 - исполнитель', reply_markup=markup_cancel_step)
+        user['callback_source'] = [msg.id]
+        bot.register_next_step_handler(msg, access_control, 1)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif user['step_due'] < dt.datetime.now():
+        bot.send_message(message.chat.id, 'Время ввода данных истекло')
+        cancel_step(message)
+        return
+    elif step == 1:
+        user_group = message.text
+        actual_messages = chats[message.chat.id]['callback_source']
+        if user_group == '1' or user_group == '2':
+            user['callback'] = None
+            users = db.get_list_users(message.text)
+            for us in users:
+                tg_name = us['tg_name']
+                sub_time = us['subscription_time']
+                access = us['access']
+                if access == 0:
+                    markup = quick_markup({'Открыть доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+                    user_access = 'Доступ закрыт'
+                elif access == 1:
+                    markup = quick_markup({'Закрыть доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+                    user_access = 'Доступ открыт'
+                if user_group == '1':
+                    text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
+                               f'{user_access}'
+                    msg = bot.send_message(message.chat.id, text_out, reply_markup=markup)
+                    actual_messages.append(msg.id)
+                elif user_group == '2':
+                    text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
+                               f'{user_access}'
+                    msg = bot.send_message(message.chat.id, text_out, reply_markup=markup)
+                    actual_messages.append(msg.id)
+        else:
+            text_out = f'Введенная группа некорректна'
+            bot.send_message(message.chat.id, text_out, reply_markup=markup_admin)
 
-    else:
-        text_out = f'Введенная группа некорректна'
-        bot.send_message(message.chat.id, text_out)
+
+
+
 
 
 def change_access_id(message: telebot.types.Message, tg_name):
-
     users = db.get_all_users()
-
     for us in users:
         if us['tg_name'] == tg_name:
             access = us['access']
@@ -693,6 +706,7 @@ def change_access_id(message: telebot.types.Message, tg_name):
                 bot.send_message(message.chat.id, 'Доступ закрыт', reply_markup=markup_admin)
             elif access == 0:
                 bot.send_message(message.chat.id, 'Доступ открыт', reply_markup=markup_admin)
+
 
 
 def apps_stat(message: telebot.types.Message):
@@ -733,3 +747,18 @@ def salary_stat(message: telebot.types.Message):
                                           f'Chat_id {chat_id} \n'
                                           f'Выполнено заявок {count} \n'
                                           f'К оплате {salary}  \n')
+
+
+def get_clients(message: telebot.types.Message):
+    pass
+
+
+def get_executor(message: telebot.types.Message):
+    pass
+
+def add_client(message: telebot.types.Message):
+    pass
+
+
+def add_executor(message: telebot.types.Message):
+    pass

@@ -2,7 +2,6 @@ import datetime as dt
 
 
 import bot_functions as calls
-import db
 from globals import *
 
 # general callback functions mapping to callback buttons
@@ -17,9 +16,9 @@ calls_map = {
     'apps_in_work': calls.apps_in_work,
     'add_user': calls.add_user,
     'access_control': calls.access_control,
-    'get_clients': calls.get_clients,
     'apps_stat': calls.apps_stat,
     'salary_stat': calls.salary_stat,
+    'get_clients': calls.get_clients
 }
 
 # callback functions mapping to callback buttons
