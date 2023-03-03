@@ -282,5 +282,17 @@ def add_new_user(tg_name, user_group, subscription_time, access=1):
     return cur.lastrowid
 
 
+def get_exec_stat(request_date, date_now):
+    cur: sqlite3.Cursor = con.execute(
+         f'''SELECT users.tg_name, users.chat_id, orders.date_accepted, count(users.tg_name) as cnt
+            FROM orders INNER JOIN
+            users ON orders.ex_chat_id = users.chat_id
+            WHERE  orders.date_accepted BETWEEN "{request_date}" AND "{date_now}"
+            GROUP BY users.tg_name'''
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
 if __name__ == '__main__':
     pass

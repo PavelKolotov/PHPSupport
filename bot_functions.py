@@ -2,6 +2,7 @@ import datetime as dt
 import telebot
 
 from telebot.util import quick_markup
+from datetime import timedelta
 
 import db
 from globals import (
@@ -727,27 +728,44 @@ def apps_stat(message: telebot.types.Message):
                                           f'Создано заявок {count} \n')
 
 
-def salary_stat(message: telebot.types.Message):
+def get_salary_stat(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+    user['callback'] = 'salary_stat'
 
-    users = db.get_list_users(2)
-    orders = db.get_all_orders()
+    if step == 0:
+        msg = bot.send_message(message.chat.id, '''
+                    Введите количество дней за которые нужно сформировать статистику:
+                    ''', parse_mode='Markdown', reply_markup=markup_cancel_step)
+        user['callback_source'] = [msg.id]
+        bot.register_next_step_handler(message, get_salary_stat, 1)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif user['step_due'] < dt.datetime.now():
+        bot.send_message(message.chat.id, 'Время ввода данных истекло')
+        cancel_step(message)
+        return
 
-    for user in users:
-        chat_id = user['chat_id']
-        tg_name = user['tg_name']
-        count = 0
-        wage_rate = 1000
-
-        for order in orders:
-            if order['ex_chat_id'] == chat_id and order['status'] == 6:
-                count += 1
-
-        salary = count * wage_rate
-        bot.send_message(message.chat.id, f'Исполитель {tg_name} \n'
-                                          f'Chat_id {chat_id} \n'
-                                          f'Выполнено заявок {count} \n'
-                                          f'К оплате {salary}  \n')
-
+    if step == 1:
+        user['callback'] = []
+        try:
+            days = int(message.text)
+            delta = timedelta(days=days)
+            date_now = dt.date.today()
+            request_date = date_now - delta
+            db_execs = db.get_exec_stat(request_date, date_now)
+            wage_rate = 1000
+            for db_exec in db_execs:
+                count = int(db_exec['cnt'])
+                chat_id = db_exec['chat_id']
+                tg_name = db_exec['tg_name']
+                salary = count * wage_rate
+                bot.send_message(message.chat.id, f'Исполитель {tg_name} \n'
+                                                  f'Chat_id {chat_id} \n'
+                                                  f'Выполнено заявок {count} \n'
+                                                  f'К оплате {salary}  \n')
+        except:
+            bot.send_message(message.chat.id, 'Введенное количество дней некорректно')
+            cancel_step(message)
+            return
 
 def get_clients(message: telebot.types.Message):
     pass

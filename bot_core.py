@@ -17,7 +17,7 @@ calls_map = {
     'add_user': calls.add_user,
     'access_control': calls.access_control,
     'apps_stat': calls.apps_stat,
-    'salary_stat': calls.salary_stat,
+    'salary_stat': calls.get_salary_stat,
     'get_clients': calls.get_clients
 }
 
