@@ -710,22 +710,44 @@ def change_access_id(message: telebot.types.Message, tg_name):
 
 
 
-def apps_stat(message: telebot.types.Message):
+def apps_stat(message: telebot.types.Message, step=0):
+    user = chats[message.chat.id]
+    user['callback'] = 'apps_stat'
 
-    users = db.get_list_users(1)
-    orders = db.get_all_orders()
-    total_orders = orders[-1]['order_id'] - orders[0]['order_id']
-    bot.send_message(message.chat.id, f'Общее количество заявок {total_orders}')
-    for user in users:
-        chat_id = user['chat_id']
-        tg_name = user['tg_name']
-        count = 0
-        for order in orders:
-            if order['client_chat_id'] == chat_id:
-                count += 1
-        bot.send_message(message.chat.id, f'Заказчик {tg_name} \n'
-                                          f'Chat_id {chat_id} \n'
-                                          f'Создано заявок {count} \n')
+    if step == 0:
+        msg = bot.send_message(message.chat.id, '''
+                        Введите количество дней за которые нужно сформировать статистику:
+                        ''', parse_mode='Markdown', reply_markup=markup_cancel_step)
+        user['callback_source'] = [msg.id]
+        bot.register_next_step_handler(message, apps_stat, 1)
+        user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
+    elif user['step_due'] < dt.datetime.now():
+        bot.send_message(message.chat.id, 'Время ввода данных истекло')
+        cancel_step(message)
+        return
+
+    if step == 1:
+        user['callback'] = []
+        try:
+            all_orders = 0
+            days = int(message.text)
+            delta = timedelta(days=days)
+            date_now = dt.date.today()
+            request_date = date_now - delta
+            db_clients = db.get_clients_stat(request_date, date_now)
+            for db_client in db_clients:
+                count = int(db_client['cnt'])
+                chat_id = db_client['chat_id']
+                tg_name = db_client['tg_name']
+                all_orders += count
+                bot.send_message(message.chat.id, f'Заказчик {tg_name} \n'
+                                                  f'Chat_id {chat_id} \n'
+                                                  f'Создано заявок {count} \n')
+            bot.send_message(message.chat.id, f'Общее количество заявок за период {all_orders}')
+        except:
+            bot.send_message(message.chat.id, 'Введенное количество дней некорректно')
+            cancel_step(message)
+            return
 
 
 def get_salary_stat(message: telebot.types.Message, step=0):

@@ -294,5 +294,17 @@ def get_exec_stat(request_date, date_now):
     cur.close()
     return rows
 
+def get_clients_stat(request_date, date_now):
+    cur: sqlite3.Cursor = con.execute(
+         f'''SELECT users.tg_name, users.chat_id, count(users.tg_name) as cnt
+            FROM orders INNER JOIN
+            users ON orders.client_chat_id = users.chat_id
+            WHERE  orders.date_reg BETWEEN "{request_date}" AND "{date_now}"
+            GROUP BY users.tg_name'''
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return rows
+
 if __name__ == '__main__':
     pass
