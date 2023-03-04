@@ -132,6 +132,7 @@ def cancel_step(message: telebot.types.Message):
     bot.clear_step_handler(message)
     bot.send_message(message.chat.id, 'Действие отменено')
     show_main_menu(message.chat.id, chats[message.chat.id]['group'])
+    chats[message.chat.id]['callback'] = None
 
 
 # CALLBACK FUNCTIONS FOR CLIENT
@@ -607,7 +608,6 @@ def reject_answer_id(msg: telebot.types.Message, order_id):
 def add_user(message: telebot.types.Message, step=0):
     user = chats[message.chat.id]
     user['callback'] = 'add_user'
-
     if step == 0:
         msg = bot.send_message(message.chat.id, '''
                 Введите имя пользователя для регистации без учета @
@@ -629,28 +629,21 @@ def add_user(message: telebot.types.Message, step=0):
         user['callback_source'] = [msg.id]
         bot.register_next_step_handler(message, add_user, 2)
         user['step_due'] = dt.datetime.now() + dt.timedelta(0, INPUT_DUE_TIME)
-    elif user['step_due'] < dt.datetime.now():
-        bot.send_message(message.chat.id, 'Время ввода данных истекло')
-        cancel_step(message)
-        return
     elif step == 2:
-        if message.text == '1' or message.text == '2':
+        if message.text in ['1', '2']:
             date_reg = dt.date.today()
             user_group = message.text
             user_id = db.add_new_user(user['name'], user_group, date_reg)
             bot.send_message(message.chat.id, f'Пользователь #{user_id} - {user["name"]} зарегистрирован.',
                              reply_markup=markup_admin)
         else:
-            bot.send_message(message.chat.id, 'Введенная группа некорректна', reply_markup=markup_admin)
-
-        user['callback'] = None
-
+            bot.send_message(message.chat.id, 'Введенная группа некорректна')
+            cancel_step(message)
 
 
 def access_control(message: telebot.types.Message, step=0):
     user = chats[message.chat.id]
     user['callback'] = 'access_control'
-
     if step == 0:
         msg = bot.send_message(message.chat.id,
                                'Введите группу пользователя:\n'
@@ -665,18 +658,18 @@ def access_control(message: telebot.types.Message, step=0):
     elif step == 1:
         user_group = message.text
         actual_messages = chats[message.chat.id]['callback_source']
-        if user_group == '1' or user_group == '2':
+        if user_group in ['1', '2']:
             user['callback'] = None
-            users = db.get_list_users(message.text)
+            users = db.get_list_users(int(message.text))
             for us in users:
                 tg_name = us['tg_name']
                 sub_time = us['subscription_time']
                 access = us['access']
-                if access == 0:
-                    markup = quick_markup({'Открыть доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+                if access == ACCESS_DENIED:
+                    markup = quick_markup({'Открыть доступ': {'callback_data': f'allow_access_id:{tg_name}'}})
                     user_access = 'Доступ закрыт'
-                elif access == 1:
-                    markup = quick_markup({'Закрыть доступ': {'callback_data': f'change_access_id:{tg_name}'}})
+                elif access == ACCESS_ALLOWED:
+                    markup = quick_markup({'Закрыть доступ': {'callback_data': f'deny_access_id:{tg_name}'}})
                     user_access = 'Доступ открыт'
                 if user_group == '1':
                     text_out = f'Заказчик  {tg_name}\n\nОплата подписки: {sub_time}\n' \
@@ -684,30 +677,28 @@ def access_control(message: telebot.types.Message, step=0):
                     msg = bot.send_message(message.chat.id, text_out, reply_markup=markup)
                     actual_messages.append(msg.id)
                 elif user_group == '2':
-                    text_out = f'Исполнитель  {tg_name}\n\nЗарегистрирован: {sub_time}\n' \
+                    text_out = f'Исполнитель *{tg_name}*\n\nЗарегистрирован: {sub_time}\n' \
                                f'{user_access}'
-                    msg = bot.send_message(message.chat.id, text_out, reply_markup=markup)
+                    msg = bot.send_message(message.chat.id, text_out, reply_markup=markup,
+                                           parse_mode="Markdown")
                     actual_messages.append(msg.id)
         else:
-            text_out = f'Введенная группа некорректна'
-            bot.send_message(message.chat.id, text_out, reply_markup=markup_admin)
+            msg = bot.send_message(message.chat.id, 'Введенная группа некорректна')
+            cancel_step(message)
 
 
+def allow_access_id(message: telebot.types.Message, tg_name):
+    callback_source: list =  chats[message.chat.id]['callback_source']
+    db.change_user_access(tg_name, ACCESS_ALLOWED)
+    bot.send_message(message.chat.id, 'Доступ открыт')
+    callback_source.remove(message.id)
 
 
-
-
-def change_access_id(message: telebot.types.Message, tg_name):
-    users = db.get_all_users()
-    for us in users:
-        if us['tg_name'] == tg_name:
-            access = us['access']
-            db.change_user_access(tg_name, access)
-            if access == 1:
-                bot.send_message(message.chat.id, 'Доступ закрыт', reply_markup=markup_admin)
-            elif access == 0:
-                bot.send_message(message.chat.id, 'Доступ открыт', reply_markup=markup_admin)
-
+def deny_access_id(message: telebot.types.Message, tg_name):
+    callback_source: list =  chats[message.chat.id]['callback_source']
+    db.change_user_access(tg_name, ACCESS_DENIED)
+    bot.send_message(message.chat.id, 'Доступ закрыт')
+    callback_source.remove(message.id)
 
 
 def apps_stat(message: telebot.types.Message, step=0):
@@ -725,7 +716,6 @@ def apps_stat(message: telebot.types.Message, step=0):
         bot.send_message(message.chat.id, 'Время ввода данных истекло')
         cancel_step(message)
         return
-
     if step == 1:
         user['callback'] = []
         try:
@@ -765,7 +755,6 @@ def get_salary_stat(message: telebot.types.Message, step=0):
         bot.send_message(message.chat.id, 'Время ввода данных истекло')
         cancel_step(message)
         return
-
     if step == 1:
         user['callback'] = []
         try:
@@ -788,17 +777,3 @@ def get_salary_stat(message: telebot.types.Message, step=0):
             bot.send_message(message.chat.id, 'Введенное количество дней некорректно')
             cancel_step(message)
             return
-
-def get_clients(message: telebot.types.Message):
-    pass
-
-
-def get_executor(message: telebot.types.Message):
-    pass
-
-def add_client(message: telebot.types.Message):
-    pass
-
-
-def add_executor(message: telebot.types.Message):
-    pass

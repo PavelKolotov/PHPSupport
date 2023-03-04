@@ -18,7 +18,6 @@ calls_map = {
     'access_control': calls.access_control,
     'apps_stat': calls.apps_stat,
     'salary_stat': calls.get_salary_stat,
-    'get_clients': calls.get_clients
 }
 
 # callback functions mapping to callback buttons
@@ -39,7 +38,8 @@ calls_id_map = {
     'accept_work_id': calls.accept_work_id,
     'reject_work_id': calls.reject_work_id,
     'send_comments_id': calls.send_comments_id,
-    'change_access_id': calls.change_access_id
+    'allow_access_id': calls.allow_access_id,
+    'deny_access_id': calls.deny_access_id,
 }
 
 # callback buttons display names to mention them in handling functions

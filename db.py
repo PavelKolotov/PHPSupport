@@ -254,10 +254,7 @@ def get_all_orders():
 
 
 def change_user_access(tg_name, access):
-    if access == 1:
-        cur = con.execute(f'UPDATE users SET access = 0 WHERE tg_name LIKE "{tg_name}"')
-    else:
-        cur = con.execute(f'UPDATE users SET access = 1 WHERE tg_name LIKE "{tg_name}"')
+    cur = con.execute(f'UPDATE users SET access = {access} WHERE tg_name LIKE "{tg_name}"')
     con.commit()
     cur.close()
     return cur.lastrowid
@@ -271,7 +268,6 @@ def change_user_id(tg_name, chat_id):
 
 
 def add_new_user(tg_name, user_group, subscription_time, access=1):
-
     data = (tg_name, user_group, subscription_time, access)
     cur = con.execute(
         'insert into users '
@@ -294,6 +290,7 @@ def get_exec_stat(request_date, date_now):
     cur.close()
     return rows
 
+
 def get_clients_stat(request_date, date_now):
     cur: sqlite3.Cursor = con.execute(
          f'''SELECT users.tg_name, users.chat_id, count(users.tg_name) as cnt
@@ -305,6 +302,7 @@ def get_clients_stat(request_date, date_now):
     rows = cur.fetchall()
     cur.close()
     return rows
+
 
 if __name__ == '__main__':
     pass
